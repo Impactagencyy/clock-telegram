@@ -1,27 +1,21 @@
-# Sveglia dei bot-canale Telegram del gestionale CLOCK.
+# Sveglia dei bot-canale Telegram.
 #
-# Perche' esiste: il gestionale sta su Vercel piano Hobby, dove i cron girano UNA
-# volta al giorno. Questo workflow chiama /api/telegram/tick, che pubblica le frasi
-# delle fasce orarie scadute. Il gestionale e' idempotente: se due sveglie suonano
-# insieme, il messaggio parte comunque una volta sola.
+# Chiama una rotta HTTP del gestionale che, se e' scaduta una fascia oraria, pubblica
+# il messaggio previsto nel canale giusto. Il gestionale e' idempotente: se due sveglie
+# suonano insieme, il messaggio parte comunque una volta sola.
 #
-# NOTA: gli orari di GitHub Actions sono in UTC. L'Italia e' UTC+2 d'estate e UTC+1
-# d'inverno, quindi le finestre sotto sono volutamente larghe.
-#
-# Consumo: ~52 esecuzioni al giorno, ~1 minuto fatturato ciascuna = ~1.600 min/mese,
-# dentro i 2.000 minuti gratuiti dei repository privati.
+# Repository PUBBLICO: i minuti Actions sono illimitati, quindi si puo' girare ogni 5
+# minuti 24 ore su 24. Per la stessa ragione i LOG DI QUESTI RUN SONO PUBBLICI: qui
+# non si stampa mai il corpo della risposta (conterrebbe nomi e testi), solo il codice
+# HTTP. L'indirizzo sta nelle Variables e la chiave nei Secrets del repository, che
+# pubblici non sono.
 
 name: sveglia-bot-telegram
 
 on:
   schedule:
-    # Sera/notte italiana (UTC 20-22 = IT 22-01 d'estate, 21-00 d'inverno): ogni 10'.
-    - cron: "*/10 20-22 * * *"
-    # Giornata (UTC 7-19 = IT 9-21 d'estate): ogni 30'.
-    - cron: "*/30 7-19 * * *"
-    # Notte fonda: un giro all'ora, tanto per non lasciare buchi.
-    - cron: "0 23,0-6 * * *"
-  workflow_dispatch: # esecuzione manuale dal sito di GitHub
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
 
 concurrency:
   group: tick
@@ -38,11 +32,9 @@ jobs:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           set -euo pipefail
-          code=$(curl -sS -o /tmp/out.json -w '%{http_code}' \
+          code=$(curl -sS -o /dev/null -w '%{http_code}' \
             -H "Authorization: Bearer ${CRON_SECRET}" \
             --max-time 60 --retry 2 --retry-delay 5 \
             "${TICK_URL}")
           echo "HTTP ${code}"
-          cat /tmp/out.json
-          echo
           test "${code}" = "200"
