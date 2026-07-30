@@ -1,0 +1,26 @@
+# GitHub disattiva i workflow programmati quando un repository resta senza attività
+# (guasto SILENZIOSO: la sveglia smette di suonare e nessuno se ne accorge).
+# Questo giro mensile scrive una riga e committa: basta a tenerlo "vivo".
+name: keepalive
+
+on:
+  schedule:
+    - cron: "0 5 1 * *" # il primo di ogni mese
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Timbra e committa
+        run: |
+          date -u "+ultimo keepalive: %F %T UTC" > ULTIMO-KEEPALIVE.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ULTIMO-KEEPALIVE.txt
+          git commit -m "keepalive" || exit 0
+          git push
